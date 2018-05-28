@@ -211,7 +211,7 @@ void initialarray(struct pmct *z,struct parr *x){
 	for(i=0;i<=z->Nt2;i++){
 		x->mu[i] = 0.0;
 		for(j=0;j<=i;j++){
-			x->C[i][j]= 1.0 - (double)(i-j)*x->dt*z->T;	// very short time expansion --> time homogeneous initial C
+			x->C[i][j]= 1.0 - (double)(i-j)*x->dt;	// very short time expansion --> time homogeneous initial C
 			/*-(1-z->beta*z->T)*fd1(1,z)			ADDED LATER	*/							
 			x->Q[i][j]= 0.0;														// very short time expansion --> FDT initially respected (Q=0)
 			x->f1[i][j]= fd1(x->C[i][j],z);

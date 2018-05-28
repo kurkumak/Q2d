@@ -178,14 +178,14 @@ double self_consistence_loop(double *gC, double *gQ, double D, double mu, struct
 
 
 
-	*gC  = -D3*C2 - D2*C1; 
+	*gC  = -D3*C2 -D2*C1; 
 	*gC += -i1C+i2C+i3C+i4C;
 	*gC -= bf1C;
 	*gC /= D;
 	*gC -= x->C[i][j];
 
-	*gQ  = -D3*Q2 - D2*Q1;
-	*gQ  = -T2 + mu; 
+	*gQ  = -D3*Q2 -D2*Q1;
+	*gQ += -T2 + mu; 
 	*gQ += -i1Q-i2Q-i3Q-i4Q;
 	*gQ += bf1C;
 	*gQ /= D;
