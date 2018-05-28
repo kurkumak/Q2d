@@ -15,11 +15,11 @@ modified: 22/03/17
 
 int KEY;
 
-void mct(struct pmct *z,struct parr *x,struct psys *w);
-int step(int i,struct pmct *z,struct parr *x);
+void CQ_Integration(struct pmct *z,struct parr *x,struct psys *w);
+int single_iteration(struct pmct *z,struct parr *x, struct psys *w);
+int time_step(int i,struct pmct *z,struct parr *x);
 
-double SC1(double *gC,double *gQ,double D,double mu,struct pmct *z,struct parr *x,int i,int j);
-double SC2(double *gC,double *gQ,double D,double mu,struct pmct *z,struct parr *x,int i,int j);
+double self_consistence_loop(double *gC,double *gQ,double D,double mu,struct pmct *z,struct parr *x,int i,int j);
 double I1C(struct parr *x,int i,int j,int m);
 double I1Cs(struct parr *x,int i,int j,int m);
 double I2C(struct parr *x,int i,int j,int m);
@@ -43,18 +43,18 @@ int main(int argc, char *argv[]){
 
 	write_parameters(&z,&x,&w);
 
-	mct(&z,&x,&w);
+	CQ_Integration(&z,&x,&w);
 
 	printf("\n-------------------------------------------------------END-------------------------------------------------------\n");
 
 	return(0);
 }
 
-void mct(struct pmct *z,struct parr *x, struct psys *w){
+void CQ_Integration(struct pmct *z,struct parr *x, struct psys *w){
 
 	array_initialization(z,x);
 
-	int i,rpt=0,itr=0;
+	int rpt=0,itr=0;
 
 /*------------------------------------------------------------*/
 	initialarray(z,x); 	// prepare the array btwn 0 <= i,j <= Nt/2
@@ -63,118 +63,154 @@ void mct(struct pmct *z,struct parr *x, struct psys *w){
 	write_C_0(x,w,0,z->Nt2);
 
 	while(itr <= z->itr && rpt<z->rpt){
-		
-		i=z->Nt2+1;
-		while(i<=z->Nt && rpt<z->rpt){
-/*------------------------------------------------------------*/
-			rpt = step(i,z,x);	// propagate the solution the array btwn Nt/2 <= i,j <= Nt
-			i++;
-/*------------------------------------------------------------*/
-		}
-
-		write_C_0(x,w,z->Nt2+1,z->Nt);
-		write_C(z,x,w,1);
-
-		if(itr%3==0) { snap_config(x->C,x->dt*z->Nt,z,w); }
-
-/*------------------------------------------------------------*/
-		//printf("\nmu_before = %f",mu_t(z,x,z->Nt));
-		contract(z,x,&(x->dt),&(x->dmu));	// double the size of the system
-		//printf("\nmu_after = %f\n",mu_t(z,x,z->Nt2));
-/*------------------------------------------------------------*/
+		rpt = single_iteration(z,x,w);
 		printf(" %dth/%d cycle - window_time: %.2e \n",itr,z->itr,x->dt*z->Nt);
+
 		itr++;
 	}
 
-	int j=2; for(i=1;i<z->Ntexp;i++) { write_C(z,x,w,j); j = power(2,i); } 
+	final_write_C(z,x,w);
 }
 
-int step(int i,struct pmct *z,struct parr *x){
+int single_iteration(struct pmct *z,struct parr *x, struct psys *w) {
 
-	int j,scmax;
-	double D,err2,err2_temp;
+	int i=z->Nt2+1;
+	int rpt=0;
 
-	double * gC = (double *) calloc ((z->Nt),sizeof(double));
-	double * gQ = (double *) calloc ((z->Nt),sizeof(double));
+	while(i<=z->Nt && rpt<z->rpt){
+/*------------------------------------------------------------*/
+		rpt = time_step(i,z,x);	// propagate the solution the array btwn Nt/2 <= i,j <= Nt
+		i++;
+/*------------------------------------------------------------*/
+	}
+
+
+//------------------PRINTING--------------------------
+	write_C_0(x,w,z->Nt2+1,z->Nt);
+	write_C(z,x,w,1);
+
+	snap_config(x->C,x->dt*z->Nt,z,w);
+//----------------------------------------------------
+
+
+/*------------------------------------------------------------*/
+	//printf("\nmu_before = %f",mu_t(z,x,z->Nt));
+	contract(z,x,&(x->dt),&(x->dmu));	// double the size of the system
+	//printf("\nmu_after = %f\n",mu_t(z,x,z->Nt2));
+/*------------------------------------------------------------*/
+
+	return rpt;
+}
+
+int time_step(int i,struct pmct *z,struct parr *x){
+
+	int j,rpt;
+	double D,err2,err2_tmp;
+
+	double gC;
+	double gQ;
 
 	extrapolate(z,x,i);
 
 	// (3) Go to the SC (self-consistence) loop
-	scmax = 0;
+	rpt = 0;
 	err2 =1.0;
 
-	while(err2 >= z->eps*z->eps && scmax < z->rpt){
+	while(err2 >= z->eps*z->eps && rpt < z->rpt){
+		
 		err2 = 0.0;
 
-		//****** PART ----> j<i-1
 		for(j=i-z->Nc-1;j>=0;j--){
 
-			x->mu[i] = mu_t(z,x,i);
-			D = D1/x->dt  + x->mu[i] + x->df1v[i][i-1];
-
-			err2_temp = SC2(gC,gQ,D,x->mu[i],z,x,i,j);
-			if (err2_temp>err2) { err2=err2_temp; }
+			err2_tmp = self_consistence_loop(&gC,&gQ,D,x->mu[i],z,x,i,j);
+			if (err2_tmp>err2) { err2=err2_tmp; }
 			
 			// renew all variable
-			x->C[i][j] += gC[j];
-			x->Q[i][j] += gQ[j];
+			x->C[i][j] += gC;
+			x->Q[i][j] += gQ;
 			x->f1[i][j] = fd1(x->C[i][j],z);
 			x->f2[i][j] = fd2(x->C[i][j],z);
 		
 			extrapolate_step(z,x,i,j);
 		}
 
-		scmax++;	
+		rpt++;	
 	}
-
-	free(gC);
-	free(gQ);
 
 	x->E[i] = E_t(z,x,i);
 
-	z->f_err = err2;
-
-	printf("\r\t%4d\t%2.1e:%2.1e\t  %d\t",i,z->f_err,z->eps*z->eps,scmax); fflush(stdout);
-	return scmax;
+	printf("\r\t%4d\t%2.1e:%2.1e\t  %d\t",i,err2,z->eps*z->eps,rpt); fflush(stdout);
+	return rpt;
 }
 
-double SC2(double *gC, double *gQ, double D, double mu, struct pmct *z, struct parr *x,int i, int j){
-  int m;
-  double i1C,i2C,i3C,i4C,i1Q,i2Q,i3Q,i4Q;
-  m = (int)(0.5*(i+j));
-  i1C = I1C(x,i,j,m);
-  i2C = I2C(x,i,j,m);
-  i3C = I3C(x,i,j);
-  i4C = I4C(x,i,j);
-  i1Q = I1Q(x,i,j,m);
-  i2Q = I2Q(x,i,j,m);
-  i3Q = i3C;
-  i4Q = i4C;
+double self_consistence_loop(double *gC, double *gQ, double D, double mu, struct pmct *z, struct parr *x,int i, int j){
 
-  gC[j] = -D3/x->dt*x->C[i-2][j]-D2/x->dt*x->C[i-1][j]-i1C+i2C+i3C+i4C;
-  gC[j]-= (1-z->T*z->beta)*fd1(x->C[i][0],z)*x->C[j][0];
-  gC[j]/= D;
-  gC[j]-= x->C[i][j];
-  gQ[j] = -z->T+mu-D3/x->dt*x->Q[i-2][j]-D2/x->dt*x->Q[i-1][j]-i1Q-i2Q-i3Q-i4Q;
-  gQ[j]+= (1-z->T*z->beta)*fd1(x->C[i][0],z)*x->C[j][0];
-  gQ[j]/= D;
-  gQ[j]-= x->Q[i][j];
+	//evaluate Lagrange multiplier
+	x->mu[i] = mu_t(z,x,i);
+
+	//factor that multiplies C[i][j] and Q[i][j] in the self-loop consistence
+	D = D1/x->dt  + x->mu[i] + x->df1v[i][i-1];
+
+
+	int m;
+	double i1C,i2C,i3C,i4C,i1Q,i2Q,i3Q,i4Q,bf1C;
+	double C2,C1,Q2,Q1;
+	double T2;
+
+	m = (int)(0.5*(i+j));
+
+	i1C = I1C(x,i,j,m);
+	i2C = I2C(x,i,j,m);
+	i3C = I3C(x,i,j);
+	i4C = I4C(x,i,j);
+	i1Q = I1Q(x,i,j,m);
+	i2Q = I2Q(x,i,j,m);
+	i3Q = i3C;
+	i4Q = i4C;
+	bf1C = (1-z->T*z->beta)*fd1(x->C[i][0],z)*x->C[j][0];
+
+	T2 = z->T*z->T;
+
+	C2 = x->C[i-2][j]/x->dt;
+	C1 = x->C[i-1][j]/x->dt;
+	Q2 = x->Q[i-2][j]/x->dt;
+	Q1 = x->Q[i-1][j]/x->dt;
+
+
+
+	*gC  = -D3*C2 - D2*C1; 
+	*gC += -i1C+i2C+i3C+i4C;
+	*gC -= bf1C;
+	*gC /= D;
+	*gC -= x->C[i][j];
+
+	*gQ  = -D3*Q2 - D2*Q1;
+	*gQ  = -T2 + mu; 
+	*gQ += -i1Q-i2Q-i3Q-i4Q;
+	*gQ += bf1C;
+	*gQ /= D;
+	*gQ -= x->Q[i][j];
 	
-  return gC[j]*gC[j]+gQ[j]*gQ[j];
+	return power(*gC,2)+power(*gQ,2);
 }
 
 double I1C(struct parr *x,int i,int j,int m){
-  int l;
-  double sum;
-  sum = 0.0;
-  sum += x->f1[i][m]*x->C[m][j]-x->f1[i][j]*x->C[j][j];
-  for(l=m+1;l<=i-1;l++){
-    sum += x->df1v[i][l-1]*(x->C[l][j]-x->C[l-1][j]);
-  }
-  sum += x->df1v[i][i-1]*(-x->C[i-1][j]);
-  for(l=j+1;l<=m;l++){
-    sum -= (x->f1[i][l]-x->f1[i][l-1])*x->dCh[l][j];
-  }
+	int l;
+	double sum;
+	sum = 0.0;
+
+	for(l=m+1;l<=i-1;l++){
+		sum += x->df1v[i][l-1]*(x->C[l][j]-x->C[l-1][j]);
+	}
+
+	sum += x->f1[i][m]*x->C[m][j]-x->f1[i][j]*x->C[j][j];
+
+	for(l=j+1;l<=m;l++){
+		sum -= (x->f1[i][l]-x->f1[i][l-1])*x->dCh[l][j];
+	}
+
+    sum += x->df1v[i][i-1]*(-x->C[i-1][j]); //Term of the step expansion
+
   return sum;
 }
 
@@ -205,17 +241,22 @@ double I4C(struct parr *x,int i,int j){
 }
 
 double I1Q(struct parr *x,int i,int j,int m){
-  int l;
-  double sum;
-  sum = 0.0;
-  sum += x->f1[i][m]*x->Q[m][j]-x->f1[i][j]*x->Q[j][j];
-  for(l=m+1;l<=i-1;l++){
-    sum += x->df1v[i][l-1]*(x->Q[l][j]-x->Q[l-1][j]);
-  }
-  sum += x->df1v[i][i-1]*(-x->Q[i-1][j]);
-  for(l=j+1;l<=m;l++){
-    sum -= (x->f1[i][l]-x->f1[i][l-1])*x->dQh[l][j];
-  }
+	int l;
+	double sum;
+	sum = 0.0;
+
+	for(l=m+1;l<=i-1;l++){
+		sum += x->df1v[i][l-1]*(x->Q[l][j]-x->Q[l-1][j]);
+	}
+
+	sum += x->f1[i][m]*x->Q[m][j]-x->f1[i][j]*x->Q[j][j];
+
+	for(l=j+1;l<=m;l++){
+		sum -= (x->f1[i][l]-x->f1[i][l-1])*x->dQh[l][j];
+	}
+
+    sum += x->df1v[i][i-1]*(-x->Q[i-1][j]); //Term of the step expansion
+
   return sum;
 }
 
@@ -231,7 +272,7 @@ double I2Q(struct parr *x,int i,int j,int m){
 double mu_t(struct pmct *z,struct parr *x,int i){
 	int l;
 	double mu;
-	mu = z->T + x->dmu;
+	mu = z->T*z->T + x->dmu;
 	for(l=1;l<=i-z->Nc;l++){
 		mu+=(x->Q[i][l]-x->Q[i][l-1])*
 			(I3*(x->f1[i][l+1]+x->f2[i][l+1]*x->C[i][l+1])

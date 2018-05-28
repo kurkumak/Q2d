@@ -17,7 +17,6 @@ struct pmct{
 	int Nt,Ntexp,Nt2,Nc,rpt,den,itr;	//Nt: #(grid elements), Ntexp: log2(Nt), rpt, Nt2: Nt/2, Nsh: #(short-grid elements), den: Nt/Nsh , itr: #(cycles)
 	double t,t0,eps,alpha;
 	double p,s_eps,s,T,beta;			//p: (p+s)-spin, s_eps: weight of s-interaction, s: (p+s)-spin, T: temperature, beta: inverse temperature of the initial equilibrium
-	double f_err;	
 };
 
 struct parr{							//see appendix C
@@ -49,6 +48,7 @@ void extrapolate_step(struct pmct *z,struct parr *x,int i, int j);
 void initialarray(struct pmct *z,struct parr *x);
 void write_C_0(struct parr *x, struct psys *w, int ini, int ifi);
 void write_C(struct pmct *z, struct parr *x, struct psys *w, int j);
+void final_write_C(struct pmct *z, struct parr *x, struct psys *w);
 
 void snap_config(double **C,double time,struct pmct *z,struct psys *w);
 void snap_vector(double **C, double **dC, char *name, double time, struct pmct *z, struct psys *w);
@@ -157,15 +157,15 @@ double power(double x,int p){
 }
 
 double f(double x, struct pmct *z){
-	return 0.5*power(x,z->p)/z->T + z->s_eps*0.5*power(x,z->s)/z->T;
+	return 0.5*power(x,z->p) + z->s_eps*0.5*power(x,z->s);
 }
 
 double fd1(double x, struct pmct *z){
-	return 0.5*(z->p)*power(x,z->p-1.0)/z->T + z->s_eps*0.5*(z->s)*power(x,z->s-1.0)/z->T;
+	return 0.5*(z->p)*power(x,z->p-1.0) + z->s_eps*0.5*(z->s)*power(x,z->s-1.0);
 }
 
 double fd2(double x, struct pmct *z){
-	return 0.5*(z->p)*(z->p-1.0)*power(x,z->p-2.0)/z->T + z->s_eps*0.5*(z->s)*(z->s-1.0)*power(x,z->s-2.0)/z->T;
+	return 0.5*(z->p)*(z->p-1.0)*power(x,z->p-2.0) + z->s_eps*0.5*(z->s)*(z->s-1.0)*power(x,z->s-2.0);
 }
 
 void array_initialization(struct pmct *z,struct parr *x) {
@@ -350,6 +350,13 @@ void write_C(struct pmct *z, struct parr *x, struct psys *w, int j){
 		fprintf(fout,"%1.5e\t%1.5e\t%1.5e\t%1.5e\t%1.5e\t%1.5e\t%1.5e\n",(double)(i-j)*x->dt,x->C[i][j],x->dCv[i][j],x->dCh[i][j],x->Q[i][j],x->dQv[i][j],x->dQh[i][j]);
   	}
 	fclose(fout);
+}
+
+void final_write_C(struct pmct *z, struct parr *x, struct psys *w){
+	int i,j=2;
+	for(i=1;i<z->Ntexp;i++) {
+		write_C(z,x,w,j); j = power(2,i); 
+	} 
 }
 
 //#include <algorithm>
