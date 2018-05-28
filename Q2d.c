@@ -78,9 +78,9 @@ void mct(struct pmct *z,struct parr *x, struct psys *w){
 		if(itr%3==0) { snap_config(x->C,x->dt*z->Nt,z,w); }
 
 /*------------------------------------------------------------*/
-		//printf("\nmu_before = %f",mu_t(z,x,z->Nt));
+		printf("\nmu_before = %f",mu_t(z,x,z->Nt));
 		contract(z,x,&(x->dt),&(x->dmu));	// double the size of the system
-		//printf("\nmu_after = %f\n",mu_t(z,x,z->Nt2));
+		printf("\nmu_after = %f\n",mu_t(z,x,z->Nt2));
 /*------------------------------------------------------------*/
 		printf(" %dth/%d cycle - window_time: %.2e \n",itr,z->itr,x->dt*z->Nt);
 		itr++;
@@ -134,7 +134,7 @@ int step(int i,struct pmct *z,struct parr *x){
 
 	z->f_err = err2;
 
-	printf("\r\t%4d\t%2.1e:%2.1e\t  %d\t",i,z->f_err,z->eps*z->eps,scmax); fflush(stdout);
+	//printf("\r\t%4d\t%2.1e:%2.1e\t  %d\t",i,z->f_err,z->eps*z->eps,scmax); fflush(stdout);
 	return scmax;
 }
 
