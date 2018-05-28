@@ -76,7 +76,7 @@ void parameters_initialization(struct pmct *z,struct parr *x, struct psys *w, in
 	z->Nt2= (int)z->Nt/2;
 
 	z->den  = 1 << 5;			// Nt/Nc
-	z->Nc = 32; //<< (z->Ntexp-5);
+	z->Nc = 8; //<< (z->Ntexp-5);
 	z->itr = 34;				// number of cycle.
 
 	z->t0 = 1.0E-5/z->T;			// Initial time window
