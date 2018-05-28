@@ -6,12 +6,12 @@
 
 #define PRINT
 
-#define D1 3./2.
-#define D2 -2.
-#define D3 1./2.
-#define I1 5./12.
-#define I2 8./12.
-#define I3 -1./12.
+#define D0 3./2.
+#define D1 -2.
+#define D2 1./2.
+#define I0 5./12.
+#define I1 8./12.
+#define I2 -1./12.
 
 struct pmct{
 	int Nt,Ntexp,Nt2,Nc,rpt,den,itr;	//Nt: #(grid elements), Ntexp: log2(Nt), rpt, Nt2: Nt/2, Nsh: #(short-grid elements), den: Nt/Nsh , itr: #(cycles)
@@ -46,7 +46,7 @@ void extrapolate(struct pmct *z,struct parr *x,int i);
 void extrapolate_step(struct pmct *z,struct parr *x,int i, int j);
 
 void initialarray(struct pmct *z,struct parr *x);
-void write_C_0(struct parr *x, struct psys *w, int ini, int ifi);
+void write_C_0(struct pmct *z, struct parr *x, struct psys *w, int ini, int ifi);
 void write_C(struct pmct *z, struct parr *x, struct psys *w, int j);
 void final_write_C(struct pmct *z, struct parr *x, struct psys *w);
 
@@ -239,9 +239,9 @@ void contract(struct pmct *z,struct parr *x,double *dt,double *dmu){
   double Dl;
   i=z->Nt;
   for(j=z->Nt-z->Nc*2+1;j<=z->Nt-z->Nc;j++){
-    Dl=(x->Q[i][j]-x->Q[i][j-1])*(I3*(x->f1[i][j+1]+x->f2[i][j+1]*x->C[i][j+1])
-				+I2*(x->f1[i][j  ]+x->f2[i][j  ]*x->C[i][j  ])
-				+I1*(x->f1[i][j-1]+x->f2[i][j-1]*x->C[i][j-1]) );
+    Dl=(x->Q[i][j]-x->Q[i][j-1])*(I2*(x->f1[i][j+1]+x->f2[i][j+1]*x->C[i][j+1])
+				+I1*(x->f1[i][j  ]+x->f2[i][j  ]*x->C[i][j  ])
+				+I0*(x->f1[i][j-1]+x->f2[i][j-1]*x->C[i][j-1]) );
     (*dmu) += Dl;
   }
   for(i=1;i<=z->Nt2;i++){
@@ -296,30 +296,30 @@ void extrapolate(struct pmct *z,struct parr *x,int i) {
 		x->f2[i][j]= fd2(x->C[i][j],z);
 	}
 	for(j=0;j<=i-z->Nc-1;j++){
-		x->dCh[i][j] = I3*x->C[i-2][j]+I2*x->C[i-1][j]+I1*x->C[i][j];
-		x->dQh[i][j] = I3*x->Q[i-2][j]+I2*x->Q[i-1][j]+I1*x->Q[i][j];
-		x->df1h[i][j]= I3*x->f1[i-2][j]+I2*x->f1[i-1][j]+I1*x->f1[i][j];
-		x->df2h[i][j]= I3*x->f2[i-2][j]+I2*x->f2[i-1][j]+I1*x->f2[i][j];
-		x->dCv[i][j] = I3*x->C[i][j+2]+I2*x->C[i][j+1]+I1*x->C[i][j];
-		x->dQv[i][j] = I3*x->Q[i][j+2]+I2*x->Q[i][j+1]+I1*x->Q[i][j];
-		x->df1v[i][j]= I3*x->f1[i][j+2]+I2*x->f1[i][j+1]+I1*x->f1[i][j];
-		x->df2v[i][j]= I3*x->f2[i][j+2]+I2*x->f2[i][j+1]+I1*x->f2[i][j];
+		x->dCh[i][j] = I2*x->C[i-2][j]+I1*x->C[i-1][j]+I0*x->C[i][j];
+		x->dQh[i][j] = I2*x->Q[i-2][j]+I1*x->Q[i-1][j]+I0*x->Q[i][j];
+		x->df1h[i][j]= I2*x->f1[i-2][j]+I1*x->f1[i-1][j]+I0*x->f1[i][j];
+		x->df2h[i][j]= I2*x->f2[i-2][j]+I1*x->f2[i-1][j]+I0*x->f2[i][j];
+		x->dCv[i][j] = I2*x->C[i][j+2]+I1*x->C[i][j+1]+I0*x->C[i][j];
+		x->dQv[i][j] = I2*x->Q[i][j+2]+I1*x->Q[i][j+1]+I0*x->Q[i][j];
+		x->df1v[i][j]= I2*x->f1[i][j+2]+I1*x->f1[i][j+1]+I0*x->f1[i][j];
+		x->df2v[i][j]= I2*x->f2[i][j+2]+I1*x->f2[i][j+1]+I0*x->f2[i][j];
 	}
 }
 
 void extrapolate_step(struct pmct *z,struct parr *x,int i, int j) {
 
-	x->dCh[i][j]= I3*x->C[i-2][j]+I2*x->C[i-1][j]+I1*x->C[i][j];
-	x->dQh[i][j]= I3*x->Q[i-2][j]+I2*x->Q[i-1][j]+I1*x->Q[i][j];
-	x->df1h[i][j]= I3*x->f1[i-2][j]+I2*x->f1[i-1][j]+I1*x->f1[i][j];
-	x->df2h[i][j]= I3*x->f2[i-2][j]+I2*x->f2[i-1][j]+I1*x->f2[i][j];
-	x->dCv[i][j]= I3*x->C[i][j+2]+I2*x->C[i][j+1]+I1*x->C[i][j];
-	x->dQv[i][j]= I3*x->Q[i][j+2]+I2*x->Q[i][j+1]+I1*x->Q[i][j];
-	x->df1v[i][j]= I3*x->f1[i][j+2]+I2*x->f1[i][j+1]+I1*x->f1[i][j];
-	x->df2v[i][j]= I3*x->f2[i][j+2]+I2*x->f2[i][j+1]+I1*x->f2[i][j];
+	x->dCh[i][j]= I2*x->C[i-2][j]+I1*x->C[i-1][j]+I0*x->C[i][j];
+	x->dQh[i][j]= I2*x->Q[i-2][j]+I1*x->Q[i-1][j]+I0*x->Q[i][j];
+	x->df1h[i][j]= I2*x->f1[i-2][j]+I1*x->f1[i-1][j]+I0*x->f1[i][j];
+	x->df2h[i][j]= I2*x->f2[i-2][j]+I1*x->f2[i-1][j]+I0*x->f2[i][j];
+	x->dCv[i][j]= I2*x->C[i][j+2]+I1*x->C[i][j+1]+I0*x->C[i][j];
+	x->dQv[i][j]= I2*x->Q[i][j+2]+I1*x->Q[i][j+1]+I0*x->Q[i][j];
+	x->df1v[i][j]= I2*x->f1[i][j+2]+I1*x->f1[i][j+1]+I0*x->f1[i][j];
+	x->df2v[i][j]= I2*x->f2[i][j+2]+I1*x->f2[i][j+1]+I0*x->f2[i][j];
 }
 
-void write_C_0(struct parr *x, struct psys *w, int ini, int ifi){
+void write_C_0(struct pmct *z, struct parr *x, struct psys *w, int ini, int ifi){
 	FILE *fout;
 	int i;
 	char fn[100];
@@ -331,7 +331,7 @@ void write_C_0(struct parr *x, struct psys *w, int ini, int ifi){
 
 	for(i=ini;i<=ifi;i++) {
 		fprintf(fout,"%1.5e\t%1.5e\t%1.5e\t%1.5e\t%1.5e\t%1.5e\t%1.5e\t%1.10e\t%1.10e\n",
-			(double)i*x->dt,x->C[i][0],x->dCv[i][0],x->dCh[i][0],x->Q[i][0],x->dQv[i][0],x->dQh[i][0],x->mu[i],x->E[i]);
+			(double)i*x->dt*z->T,x->C[i][0],x->dCv[i][0],x->dCh[i][0],x->Q[i][0],x->dQv[i][0],x->dQh[i][0],x->mu[i],x->E[i]);
   	}
 	fclose(fout);
 }
@@ -347,7 +347,7 @@ void write_C(struct pmct *z, struct parr *x, struct psys *w, int j){
 	}
 
 	for(i=j+1;i<=z->Nt;i++) {
-		fprintf(fout,"%1.5e\t%1.5e\t%1.5e\t%1.5e\t%1.5e\t%1.5e\t%1.5e\n",(double)(i-j)*x->dt,x->C[i][j],x->dCv[i][j],x->dCh[i][j],x->Q[i][j],x->dQv[i][j],x->dQh[i][j]);
+		fprintf(fout,"%1.5e\t%1.5e\t%1.5e\t%1.5e\t%1.5e\t%1.5e\t%1.5e\n",(double)(i-j)*x->dt*z->T,x->C[i][j],x->dCv[i][j],x->dCh[i][j],x->Q[i][j],x->dQv[i][j],x->dQh[i][j]);
   	}
 	fclose(fout);
 }
