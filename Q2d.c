@@ -60,7 +60,7 @@ void CQ_Integration(struct pmct *z,struct parr *x, struct psys *w){
 	initialarray(z,x); 	// prepare the array btwn 0 <= i,j <= Nt/2
 /*------------------------------------------------------------*/
 
-	write_C_0(x,w,0,z->Nt2);
+	write_C_0(z,x,w,0,z->Nt2);
 
 	while(itr <= z->itr && rpt<z->rpt){
 		rpt = single_iteration(z,x,w);
@@ -86,7 +86,7 @@ int single_iteration(struct pmct *z,struct parr *x, struct psys *w) {
 
 
 //------------------PRINTING--------------------------
-	write_C_0(x,w,z->Nt2+1,z->Nt);
+	write_C_0(z,x,w,z->Nt2+1,z->Nt);
 	write_C(z,x,w,1);
 
 	snap_config(x->C,x->dt*z->Nt,z,w);
@@ -149,7 +149,7 @@ double self_consistence_loop(double *gC, double *gQ, double D, double mu, struct
 	x->mu[i] = mu_t(z,x,i);
 
 	//factor that multiplies C[i][j] and Q[i][j] in the self-loop consistence
-	D = D1/x->dt  + x->mu[i] + x->df1v[i][i-1];
+	D = D0/x->dt  + x->mu[i] + x->df1v[i][i-1];
 
 
 	int m;
@@ -178,13 +178,13 @@ double self_consistence_loop(double *gC, double *gQ, double D, double mu, struct
 
 
 
-	*gC  = -D3*C2 -D2*C1; 
+	*gC  = -D2*C2 -D1*C1; 
 	*gC += -i1C+i2C+i3C+i4C;
 	*gC -= bf1C;
 	*gC /= D;
 	*gC -= x->C[i][j];
 
-	*gQ  = -D3*Q2 -D2*Q1;
+	*gQ  = -D2*Q2 -D1*Q1;
 	*gQ += -T2 + mu; 
 	*gQ += -i1Q-i2Q-i3Q-i4Q;
 	*gQ += bf1C;
@@ -275,9 +275,9 @@ double mu_t(struct pmct *z,struct parr *x,int i){
 	mu = z->T*z->T + x->dmu;
 	for(l=1;l<=i-z->Nc;l++){
 		mu+=(x->Q[i][l]-x->Q[i][l-1])*
-			(I3*(x->f1[i][l+1]+x->f2[i][l+1]*x->C[i][l+1])
-			+I2*(x->f1[i][l  ]+x->f2[i][l  ]*x->C[i][l  ])
-			+I1*(x->f1[i][l-1]+x->f2[i][l-1]*x->C[i][l-1])
+			(I2*(x->f1[i][l+1]+x->f2[i][l+1]*x->C[i][l+1])
+			+I1*(x->f1[i][l  ]+x->f2[i][l  ]*x->C[i][l  ])
+			+I0*(x->f1[i][l-1]+x->f2[i][l-1]*x->C[i][l-1])
 		);
 	}
 	mu -= (1-z->T*z->beta)*fd1(x->C[i][0],z)*x->C[i][0];
