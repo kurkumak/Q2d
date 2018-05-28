@@ -76,10 +76,10 @@ void parameters_initialization(struct pmct *z,struct parr *x, struct psys *w, in
 	z->Nt2= (int)z->Nt/2;
 
 	z->den  = 1 << 5;			// Nt/Nc
-	z->Nc = 3; //<< (z->Ntexp-5);
+	z->Nc = 32; //<< (z->Ntexp-5);
 	z->itr = 34;				// number of cycle.
 
-	z->t0 = 1.0E-4;			// Initial time window
+	z->t0 = 1.0E-5/z->T;			// Initial time window
 	z->eps= 1.0E-10; 			// Accepted error distance between the solution and the discrete equation ->
 	z->rpt= 100;				// 		in the iteration procedure with z->rpt the maximum number of iterations
 
@@ -106,7 +106,7 @@ void parameters_initialization(struct pmct *z,struct parr *x, struct psys *w, in
 
 	printf("\n-----------------------------------------------------START-------------------------------------------------------\n");
 	printf("------SYSTEM: (%d+eps*%d)-spin glass, eps = %2.3f------------------------------------------------------------------\n",(int)z->p,(int)z->s,z->s_eps);
-	printf("------PARAMETERS: T = %1.3f, T' = %1.3f, grid dimension = %d (Nsh = %d), initial time window = %.2e----------\n",z->T,1./z->beta,z->Nt,z->Nc,z->t0);
+	printf("------PARAMETERS: T = %1.3f, T' = %1.3f, grid dimension = %d (Nsh = %d), initial time window = %.2e----------\n",z->T,1./z->beta,z->Nt,z->Nc,z->t0/z->T);
 	printf("-----------------------------------------------------------------------------------------------------------------\n\n");
 
 }
@@ -211,7 +211,7 @@ void initialarray(struct pmct *z,struct parr *x){
 	for(i=0;i<=z->Nt2;i++){
 		x->mu[i] = 0.0;
 		for(j=0;j<=i;j++){
-			x->C[i][j]= 1.0 - (double)(i-j)*x->dt;	// very short time expansion --> time homogeneous initial C
+			x->C[i][j]= 1.0 - (double)(i-j)*x->dt*z->T;	// very short time expansion --> time homogeneous initial C
 			/*-(1-z->beta*z->T)*fd1(1,z)			ADDED LATER	*/							
 			x->Q[i][j]= 0.0;														// very short time expansion --> FDT initially respected (Q=0)
 			x->f1[i][j]= fd1(x->C[i][j],z);
@@ -340,7 +340,7 @@ void write_C(struct pmct *z, struct parr *x, struct psys *w, int j){
 	FILE *fout;
 	int i;
 	char fn[100];
-	sprintf(fn,"%s/%.2e.dat",w->dir,j*x->dt);
+	sprintf(fn,"%s/%.2e.dat",w->dir,j*x->dt*z->T);
 	if((fout=fopen(fn, "w"))==NULL){
 		fprintf(stderr," write_C: Cannot open a outfile\n");
 		exit(1);

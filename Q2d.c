@@ -64,7 +64,7 @@ void CQ_Integration(struct pmct *z,struct parr *x, struct psys *w){
 
 	while(itr <= z->itr && rpt<z->rpt){
 		rpt = single_iteration(z,x,w);
-		printf(" %dth/%d cycle - window_time: %.2e \n",itr,z->itr,x->dt*z->Nt);
+		printf(" %dth/%d cycle - window_time: %.2e rpt: %d\n",itr,z->itr,x->dt*z->T*z->Nt,rpt);
 
 		itr++;
 	}
@@ -89,14 +89,14 @@ int single_iteration(struct pmct *z,struct parr *x, struct psys *w) {
 	write_C_0(z,x,w,z->Nt2+1,z->Nt);
 	write_C(z,x,w,1);
 
-	snap_config(x->C,x->dt*z->Nt,z,w);
+	snap_config(x->C,x->dt*z->T*z->Nt,z,w);
 //----------------------------------------------------
 
 
 /*------------------------------------------------------------*/
-	//printf("\nmu_before = %f",mu_t(z,x,z->Nt));
+	printf("\nmu_before = %f",mu_t(z,x,z->Nt));
 	contract(z,x,&(x->dt),&(x->dmu));	// double the size of the system
-	//printf("\nmu_after = %f\n",mu_t(z,x,z->Nt2));
+	printf("\nmu_after = %f\n",mu_t(z,x,z->Nt2));
 /*------------------------------------------------------------*/
 
 	return rpt;
@@ -139,7 +139,7 @@ int time_step(int i,struct pmct *z,struct parr *x){
 
 	x->E[i] = E_t(z,x,i);
 
-	printf("\r\t%4d\t%2.1e:%2.1e\t  %d\t",i,err2,z->eps*z->eps,rpt); fflush(stdout);
+	//printf("\r\t%4d\t%2.1e:%2.1e\t  %d\t",i,err2,z->eps*z->eps,rpt); fflush(stdout);
 	return rpt;
 }
 
